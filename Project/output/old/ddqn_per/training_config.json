@@ -1,0 +1,17 @@
+{
+    "env": "CartPole-v1",
+    "episodes": 500,
+    "batch_size": 128,
+    "buffer_size": 100000,
+    "lr": 0.0003,
+    "gamma": 0.99,
+    "target_update": 10,
+    "double": true,
+    "dueling": false,
+    "priority": true,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.01,
+    "epsilon_decay": 0.999,
+    "save_dir": "train_data/ddqn_per",
+    "load_path": null
+}
