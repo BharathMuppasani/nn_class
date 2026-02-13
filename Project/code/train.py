@@ -143,7 +143,48 @@ def main():
     if args.priority:
         variant_parts.append("PER")
     variant_label = " + ".join(variant_parts) if variant_parts else "Plain"
-    print(f"Running {variant_label} DQN")
+
+    print(f"\n{'='*60}")
+    print(f"  DQN Training — {variant_label} DQN")
+    print(f"{'='*60}")
+    print(f"  Environment")
+    print(f"    --env             {args.env}")
+    print(f"    State dim         {state_dim}")
+    print(f"    Action dim        {action_dim}")
+    print(f"    Device            {device}")
+    print(f"  Training")
+    print(f"    --episodes        {args.episodes}")
+    print(f"    --batch-size      {args.batch_size}")
+    print(f"    --buffer-size     {args.buffer_size}")
+    print(f"    --lr              {args.lr}")
+    print(f"    --gamma           {args.gamma}")
+    print(f"    --tau             0.005")
+    print(f"    --target-update   {args.target_update}")
+    print(f"    --grad-clip       1.0")
+    print(f"  Exploration")
+    print(f"    --epsilon-start   {args.epsilon_start}")
+    print(f"    --epsilon-end     {args.epsilon_end}")
+    print(f"    --epsilon-decay   {args.epsilon_decay}")
+    print(f"  Variants")
+    print(f"    --double          {args.double}")
+    print(f"    --dueling         {args.dueling}")
+    print(f"    --priority        {args.priority}")
+    if args.priority:
+        print(f"    PER alpha         0.6")
+        print(f"    PER beta_start    0.4")
+        print(f"    PER beta_frames   100000")
+    print(f"  Network")
+    is_image = isinstance(state_dim, (tuple, list)) and len(state_dim) == 3
+    if is_image:
+        net_name = "DuelingCNNDQN" if args.dueling else "CNNDQN"
+    else:
+        net_name = "DuelingDQN" if args.dueling else "DQN"
+    print(f"    Architecture      {net_name}")
+    print(f"    Loss              Smooth L1 (Huber)")
+    print(f"    Optimizer         Adam (eps=1e-5)")
+    print(f"  Output")
+    print(f"    --save-dir        {args.save_dir}")
+    print(f"{'='*60}\n")
 
     agent = DQNAgent(
         state_dim=state_dim,
@@ -285,8 +326,7 @@ def main():
             agent.save(best_model_path)
             
         # Update Live Plot every N episodes to save performance
-        if episode % 5 == 0:
-            update_live_plot(fig, ax, training_logs['rewards'], training_logs['avg_rewards'])
+        update_live_plot(fig, ax, training_logs['rewards'], training_logs['avg_rewards'])
         
         # Update Progress Bar with neat metrics
         pbar.set_postfix({

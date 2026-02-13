@@ -1,0 +1,68 @@
+# =============================================================
+#  Atari Training & Plotting Commands
+#  Run from: cd /Users/bittu/Desktop/GitHub/nn_class/Project/code
+#  Env:      conda activate rl_dqn
+# =============================================================
+
+# ----- PONG (NoFrameskip — our AtariPreprocessing does frame_skip=4) -----
+
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/pong_dqn
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/pong_ddqn
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/pong_ddqn_duel
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/pong_ddqn_per
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/pong_ddqn_duel_per
+
+# ----- PONG (v4 — built-in frame_skip=4, no AtariPreprocessing skip) -----
+# NOTE: Uses Pong-v4 which has built-in skip. Our AtariPreprocessing wrapper
+#       only triggers on "NoFrameskip" in the env name, so Pong-v4 will be
+#       treated as a non-Atari env and fail (state_dim won't be image).
+#       We need to use PongNoFrameskip-v4 for all Atari runs.
+#       If you want to compare skip vs no-skip, see the note at the bottom.
+
+# ----- BREAKOUT (NoFrameskip — our AtariPreprocessing does frame_skip=4) -----
+
+python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/breakout_dqn
+python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/breakout_ddqn
+python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/breakout_ddqn_duel
+python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/breakout_ddqn_per
+python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/breakout_ddqn_duel_per
+
+# =============================================================
+#  Individual Plots
+# =============================================================
+
+# Pong
+python plot_metrics.py --dirs ../output/pong_dqn --save-dir ../output/pong_dqn
+python plot_metrics.py --dirs ../output/pong_ddqn --save-dir ../output/pong_ddqn
+python plot_metrics.py --dirs ../output/pong_ddqn_duel --save-dir ../output/pong_ddqn_duel
+python plot_metrics.py --dirs ../output/pong_ddqn_per --save-dir ../output/pong_ddqn_per
+python plot_metrics.py --dirs ../output/pong_ddqn_duel_per --save-dir ../output/pong_ddqn_duel_per
+
+# Breakout
+python plot_metrics.py --dirs ../output/breakout_dqn --save-dir ../output/breakout_dqn
+python plot_metrics.py --dirs ../output/breakout_ddqn --save-dir ../output/breakout_ddqn
+python plot_metrics.py --dirs ../output/breakout_ddqn_duel --save-dir ../output/breakout_ddqn_duel
+python plot_metrics.py --dirs ../output/breakout_ddqn_per --save-dir ../output/breakout_ddqn_per
+python plot_metrics.py --dirs ../output/breakout_ddqn_duel_per --save-dir ../output/breakout_ddqn_duel_per
+
+# =============================================================
+#  Comparison Plots (all variants per game)
+# =============================================================
+
+# Pong — all variants comparison
+python plot_metrics.py --dirs ../output/pong_dqn ../output/pong_ddqn ../output/pong_ddqn_duel ../output/pong_ddqn_per ../output/pong_ddqn_duel_per --save-dir ../output/pong_comparison
+
+# Breakout — all variants comparison
+python plot_metrics.py --dirs ../output/breakout_dqn ../output/breakout_ddqn ../output/breakout_ddqn_duel ../output/breakout_ddqn_per ../output/breakout_ddqn_duel_per --save-dir ../output/breakout_comparison
+
+# =============================================================
+#  CartPole (already trained — just plots)
+# =============================================================
+
+python plot_metrics.py --dirs ../output/cartpole_plain_dqn --save-dir ../output/cartpole_plain_dqn
+python plot_metrics.py --dirs ../output/cartpole_ddqn --save-dir ../output/cartpole_ddqn
+python plot_metrics.py --dirs ../output/cartpole_ddqn_duel --save-dir ../output/cartpole_ddqn_duel
+python plot_metrics.py --dirs ../output/cartpole_ddqn_per --save-dir ../output/cartpole_ddqn_per
+python plot_metrics.py --dirs ../output/cartpole_ddqn_duel_per --save-dir ../output/cartpole_ddqn_duel_per
+
+python plot_metrics.py --dirs ../output/cartpole_plain_dqn ../output/cartpole_ddqn ../output/cartpole_ddqn_duel ../output/cartpole_ddqn_per ../output/cartpole_ddqn_duel_per --save-dir ../output/cartpole_comparison

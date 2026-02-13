@@ -64,7 +64,7 @@ class DQNAgent:
     def select_action(self, state):
         if np.random.random() > self.epsilon:
             with torch.no_grad():
-                state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+                state = torch.FloatTensor(np.array(state)).unsqueeze(0).to(self.device)
                 q_values = self.policy_net(state)
                 return q_values.max(1)[1].item()
         else:
