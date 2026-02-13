@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from dqn import DQN, DuelingDQN
+from dqn import DQN, DuelingDQN, CNNDQN, DuelingCNNDQN
 from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
 class DQNAgent:
@@ -28,12 +28,21 @@ class DQNAgent:
         self.gamma = gamma
         self.target_update = target_update
         self.use_double = use_double
+        self.use_dueling = use_dueling
         self.use_priority = use_priority
-        
+
         # Initialize networks
-        network = DuelingDQN if use_dueling else DQN
-        self.policy_net = network(state_dim, action_dim).to(device)
-        self.target_net = network(state_dim, action_dim).to(device)
+        is_image = isinstance(state_dim, (tuple, list, torch.Size)) and len(state_dim) == 3
+
+        if is_image:
+            network = DuelingCNNDQN if use_dueling else CNNDQN
+            self.policy_net = network(state_dim, action_dim).to(device)
+            self.target_net = network(state_dim, action_dim).to(device)
+        else:
+            network = DuelingDQN if use_dueling else DQN
+            self.policy_net = network(state_dim, action_dim).to(device)
+            self.target_net = network(state_dim, action_dim).to(device)
+            
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
         # Initialize optimizer
@@ -50,7 +59,7 @@ class DQNAgent:
         self.epsilon_decay = epsilon_decay
         
         self.training_step = 0
-        self.tau = 0.9  # Soft update parameter
+        self.tau = 0.005  # Soft update parameter
     
     def select_action(self, state):
         if np.random.random() > self.epsilon:
@@ -72,7 +81,9 @@ class DQNAgent:
             states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
             weights = torch.ones(self.batch_size).to(self.device)
             indices = None
-        
+
+        weights = weights.unsqueeze(1)  # [B] → [B, 1] to match elementwise_loss shape
+
         # Get current Q values
         current_q_values = self.policy_net(states).gather(1, actions)
         
@@ -105,7 +116,7 @@ class DQNAgent:
         
         # Update priorities in PER
         if self.use_priority and indices is not None:
-            self.memory.update_priorities(indices, td_errors.detach().cpu().numpy())
+            self.memory.update_priorities(indices, td_errors.squeeze(1).detach().cpu().numpy())
         
         # Soft update target network
         if self.training_step % self.target_update == 0:
@@ -116,19 +127,24 @@ class DQNAgent:
 
 
         
-        # Update epsilon
-        self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
         self.training_step += 1
         
         return loss.item(), target_q_values, current_q_values, next_q_values, dones, td_errors
-    
+
+    def decay_epsilon(self):
+        """Decay epsilon once per episode (called from training loop)."""
+        self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
+
     def save(self, path):
         torch.save({
             'policy_net_state_dict': self.policy_net.state_dict(),
             'target_net_state_dict': self.target_net.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'epsilon': self.epsilon,
-            'training_step': self.training_step
+            'training_step': self.training_step,
+            'use_double': self.use_double,
+            'use_dueling': self.use_dueling,
+            'use_priority': self.use_priority
         }, path)
     
     def load(self, path):

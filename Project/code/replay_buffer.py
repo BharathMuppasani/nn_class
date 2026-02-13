@@ -11,20 +11,20 @@ class ReplayBuffer:
         self.device = device
         
     def push(self, state, action, reward, next_state, done):
-        state = np.array(state, dtype=np.float32)
-        next_state = np.array(next_state, dtype=np.float32)
-        
+        state = np.array(state)
+        next_state = np.array(next_state)
+
         experience = Experience(state, action, reward, next_state, done)
         self.buffer.append(experience)
-    
+
     def sample(self, batch_size):
         experiences = random.sample(self.buffer, batch_size)
         
-        states = torch.FloatTensor(np.vstack([e.state for e in experiences])).to(self.device)
-        actions = torch.LongTensor(np.vstack([e.action for e in experiences])).to(self.device)
-        rewards = torch.FloatTensor(np.vstack([e.reward for e in experiences])).to(self.device)
-        next_states = torch.FloatTensor(np.vstack([e.next_state for e in experiences])).to(self.device)
-        dones = torch.FloatTensor(np.vstack([e.done for e in experiences])).to(self.device)
+        states = torch.FloatTensor(np.stack([e.state for e in experiences])).to(self.device)
+        actions = torch.LongTensor(np.array([e.action for e in experiences])).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(np.array([e.reward for e in experiences])).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(np.stack([e.next_state for e in experiences])).to(self.device)
+        dones = torch.FloatTensor(np.array([e.done for e in experiences])).unsqueeze(1).to(self.device)
         
         return states, actions, rewards, next_states, dones
     
@@ -47,8 +47,8 @@ class PrioritizedReplayBuffer:
         self.next_idx = 0
 
     def push(self, state, action, reward, next_state, done):
-        state = np.array(state, dtype=np.float32)
-        next_state = np.array(next_state, dtype=np.float32)
+        state = np.array(state)
+        next_state = np.array(next_state)
 
         experience = Experience(state, action, reward, next_state, done)
         if len(self.buffer) < self.capacity:
@@ -76,10 +76,10 @@ class PrioritizedReplayBuffer:
         experiences = [self.buffer[idx] for idx in indices]
 
         states = torch.FloatTensor(np.stack([e.state for e in experiences])).to(self.device)
-        actions = torch.LongTensor(np.stack([e.action for e in experiences])).to(self.device)
-        rewards = torch.FloatTensor(np.stack([e.reward for e in experiences])).to(self.device)
+        actions = torch.LongTensor(np.array([e.action for e in experiences])).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(np.array([e.reward for e in experiences])).unsqueeze(1).to(self.device)
         next_states = torch.FloatTensor(np.stack([e.next_state for e in experiences])).to(self.device)
-        dones = torch.FloatTensor(np.stack([e.done for e in experiences])).to(self.device)
+        dones = torch.FloatTensor(np.array([e.done for e in experiences])).unsqueeze(1).to(self.device)
 
         self.frame += 1
         return states, actions, rewards, next_states, dones, indices, weights
