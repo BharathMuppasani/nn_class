@@ -1,5 +1,14 @@
 import gymnasium as gym
-from gymnasium.wrappers import FrameStack, AtariPreprocessing
+try:
+    import ale_py
+    gym.register_envs(ale_py)
+except ImportError:
+    pass  # ale_py not installed, Atari envs won't be available
+from gymnasium.wrappers import AtariPreprocessing
+try:
+    from gymnasium.wrappers import FrameStack
+except ImportError:
+    from gymnasium.wrappers import FrameStackObservation as FrameStack
 import torch
 import numpy as np
 import argparse

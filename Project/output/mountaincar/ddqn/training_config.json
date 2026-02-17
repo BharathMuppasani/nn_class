@@ -1,0 +1,19 @@
+{
+    "env": "MountainCar-v0",
+    "episodes": 1000,
+    "batch_size": 128,
+    "buffer_size": 100000,
+    "lr": 0.0003,
+    "gamma": 0.99,
+    "target_update": 1,
+    "render": false,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.01,
+    "epsilon_decay": 0.99,
+    "update_every": 4,
+    "double": true,
+    "dueling": false,
+    "priority": false,
+    "save_dir": "../output/mountaincar/ddqn",
+    "load_path": null
+}

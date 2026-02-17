@@ -1,5 +1,14 @@
 import gymnasium as gym
-from gymnasium.wrappers import NormalizeReward, FrameStack, AtariPreprocessing
+try:
+    import ale_py
+    gym.register_envs(ale_py)
+except ImportError:
+    pass  # ale_py not installed, Atari envs won't be available
+from gymnasium.wrappers import NormalizeReward, AtariPreprocessing
+try:
+    from gymnasium.wrappers import FrameStack
+except ImportError:
+    from gymnasium.wrappers import FrameStackObservation as FrameStack
 import torch
 import numpy as np
 import argparse
@@ -39,6 +48,8 @@ def parse_args():
                         help='Final epsilon for exploration')
     parser.add_argument('--epsilon-decay', type=float, default=0.99,
                         help='Decay rate for epsilon (applied per episode)')
+    parser.add_argument('--update-every', type=int, default=4,
+                        help='Update network every N steps (default: 4)')
     
     # DQN variants
     parser.add_argument('--double', action='store_true',
@@ -85,10 +96,14 @@ def save_training_config(args, save_dir):
         json.dump(config, f, indent=4)
 
 def aggregate_episode_q_values(q_values_list):
-    """Aggregate Q-values statistics for an episode"""
+    """Aggregate Q-values statistics for an episode. Handles both tensors and floats."""
     if not q_values_list:
         return None
-    
+
+    # Convert tensors to floats if needed (single GPU sync per episode)
+    if hasattr(q_values_list[0], 'item'):
+        q_values_list = [v.item() for v in q_values_list]
+
     q_values_array = np.array(q_values_list)
     return {
         'mean': float(np.mean(q_values_array)),
@@ -120,20 +135,6 @@ def main():
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    # Live plotting setup
-    import matplotlib
-    matplotlib.use('TkAgg')
-    plt.ion()
-    fig, ax = plt.subplots(figsize=(10, 6))
-    plt.show(block=False)
-    
-    render_mode = "human" if args.render else None
-    
-    # Create environment and agent
-    env, state_dim, action_dim = create_env(args.env, render_mode=render_mode)
-    # env = NormalizeReward(env, gamma=0.99, epsilon=1e-8) # Optional: Disable for now to see raw rewards
-    print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
-
     # Build variant label for logging
     variant_parts = []
     if args.double:
@@ -143,6 +144,24 @@ def main():
     if args.priority:
         variant_parts.append("PER")
     variant_label = " + ".join(variant_parts) if variant_parts else "Plain"
+
+    # Get short env name for window title
+    env_short = args.env.replace("NoFrameskip-v4", "").replace("-v1", "").replace("-v0", "")
+    window_title = f"{env_short} - {variant_label} DQN"
+
+    # Live plotting setup
+    import matplotlib
+    matplotlib.use('TkAgg')
+    plt.ion()
+    fig, ax = plt.subplots(figsize=(6, 4), num=window_title)
+    plt.show(block=False)
+
+    render_mode = "human" if args.render else None
+
+    # Create environment and agent
+    env, state_dim, action_dim = create_env(args.env, render_mode=render_mode)
+    # env = NormalizeReward(env, gamma=0.99, epsilon=1e-8) # Optional: Disable for now to see raw rewards
+    print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
 
     print(f"\n{'='*60}")
     print(f"  DQN Training — {variant_label} DQN")
@@ -165,6 +184,7 @@ def main():
     print(f"    --epsilon-start   {args.epsilon_start}")
     print(f"    --epsilon-end     {args.epsilon_end}")
     print(f"    --epsilon-decay   {args.epsilon_decay}")
+    print(f"    --update-every    {args.update_every}")
     print(f"  Variants")
     print(f"    --double          {args.double}")
     print(f"    --dueling         {args.dueling}")
@@ -269,17 +289,17 @@ def main():
             # np.array(state) handles it.
             
             agent.memory.push(state, action, reward, next_state, done or truncated)
-            
-            # Only update after collecting enough samples
-            if len(agent.memory) > args.batch_size:
-                loss, target_q_values, current_q_values, next_q_values, dones, td_errors = agent.update()
+
+            # Only update every N steps and after collecting enough samples
+            if len(agent.memory) > args.batch_size and total_frames % args.update_every == 0:
+                loss, target_q_values, current_q_values, next_q_values, dones_batch, td_errors = agent.update()
                 if loss is not None:
                     episode_loss.append(loss)
-                    # Store batch statistics instead of raw values
-                    episode_target_q.append(target_q_values.mean().item())
-                    episode_current_q.append(current_q_values.mean().item())
-                    episode_next_q.append(next_q_values.mean().item())
-                    episode_td_errors.append(td_errors.mean().item())
+                    # Accumulate on GPU, sync once at end of episode
+                    episode_target_q.append(target_q_values.mean())
+                    episode_current_q.append(current_q_values.mean())
+                    episode_next_q.append(next_q_values.mean())
+                    episode_td_errors.append(td_errors.mean())
 
             state = next_state
             episode_reward += reward

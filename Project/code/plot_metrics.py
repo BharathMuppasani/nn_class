@@ -313,16 +313,21 @@ def plot_comparison_q_values(run_dirs: List[str], save_dir: str, colors, start_e
     plt.savefig(f'{save_dir}/q_values_comparison.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-def plot_comparison(run_dirs: List[str], save_dir: str, colors, start_episode: int = 1):
+def plot_comparison(run_dirs: List[str], save_dir: str, colors, start_episode: int = 1, max_episodes: int = None):
     """Create comprehensive comparison plots for multiple training runs."""
     Path(save_dir).mkdir(exist_ok=True, parents=True)
-    
+
     metrics_list = []
     labels = []
-    
+
     for run_dir in run_dirs:
         with open(os.path.join(run_dir, 'training_logs.json'), 'r') as f:
             metrics = json.load(f)
+            # Truncate to max_episodes if specified
+            if max_episodes is not None:
+                for key in ['rewards', 'losses', 'episode_lengths', 'avg_rewards', 'epsilons', 'frames_per_episode', 'fps']:
+                    if key in metrics and len(metrics[key]) > max_episodes:
+                        metrics[key] = metrics[key][:max_episodes]
             metrics_list.append(metrics)
             variant = []
             config = metrics['config']
@@ -416,7 +421,9 @@ def main():
                         help='Directory to save plots')
     parser.add_argument('--start-episode', type=int, default=5,
                         help='Episode number to start plotting from (default: 5)')
-    
+    parser.add_argument('--max-episodes', type=int, default=None,
+                        help='Maximum episodes to plot (for fair comparison when runs have different lengths)')
+
     args = parser.parse_args()
     colors = setup_style()
     
@@ -434,7 +441,7 @@ def main():
         plot_single_run(metrics, q_values_log, args.save_dir, colors, args.start_episode)
     else:
         # Multiple runs comparison
-        plot_comparison(args.dirs, args.save_dir, colors, args.start_episode)
+        plot_comparison(args.dirs, args.save_dir, colors, args.start_episode, args.max_episodes)
 
 if __name__ == "__main__":
     main()

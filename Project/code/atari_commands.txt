@@ -4,65 +4,96 @@
 #  Env:      conda activate rl_dqn
 # =============================================================
 
-# ----- PONG (NoFrameskip — our AtariPreprocessing does frame_skip=4) -----
+# =============================================================
+#  TRAINING COMMANDS
+# =============================================================
 
-python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/pong_dqn
-python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/pong_ddqn
-python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/pong_ddqn_duel
-python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/pong_ddqn_per
-python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/pong_ddqn_duel_per
+# ----- CARTPOLE -----
 
-# ----- PONG (v4 — built-in frame_skip=4, no AtariPreprocessing skip) -----
-# NOTE: Uses Pong-v4 which has built-in skip. Our AtariPreprocessing wrapper
-#       only triggers on "NoFrameskip" in the env name, so Pong-v4 will be
-#       treated as a non-Atari env and fail (state_dim won't be image).
-#       We need to use PongNoFrameskip-v4 for all Atari runs.
-#       If you want to compare skip vs no-skip, see the note at the bottom.
+python train.py --env CartPole-v1 --episodes 500 --save-dir ../output/cartpole/dqn
+python train.py --env CartPole-v1 --episodes 500 --double --save-dir ../output/cartpole/ddqn
+python train.py --env CartPole-v1 --episodes 500 --double --dueling --save-dir ../output/cartpole/ddqn_duel
+python train.py --env CartPole-v1 --episodes 500 --double --priority --save-dir ../output/cartpole/ddqn_per
+python train.py --env CartPole-v1 --episodes 500 --double --dueling --priority --save-dir ../output/cartpole/ddqn_duel_per
 
-# ----- BREAKOUT (NoFrameskip — our AtariPreprocessing does frame_skip=4) -----
+# ----- PONG -----
 
-python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/breakout_dqn
-python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/breakout_ddqn
-python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/breakout_ddqn_duel
-python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/breakout_ddqn_per
-python train.py --env BreakoutNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/breakout_ddqn_duel_per
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/pong/dqn
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/pong/ddqn
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/pong/ddqn_duel
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/pong/ddqn_per
+python train.py --env PongNoFrameskip-v4 --episodes 1000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/pong/ddqn_duel_per
+
+# ----- BREAKOUT -----
+
+python train.py --env BreakoutNoFrameskip-v4 --episodes 3000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/breakout/dqn
+python train.py --env BreakoutNoFrameskip-v4 --episodes 3000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/breakout/ddqn
+python train.py --env BreakoutNoFrameskip-v4 --episodes 3000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/breakout/ddqn_duel
+python train.py --env BreakoutNoFrameskip-v4 --episodes 3000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/breakout/ddqn_per
+python train.py --env BreakoutNoFrameskip-v4 --episodes 3000 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/breakout/ddqn_duel_per
+
+# ----- SPACE INVADERS -----
+
+python train.py --env SpaceInvadersNoFrameskip-v4 --episodes 1500 --lr 1e-4 --batch-size 64 --buffer-size 100000 --save-dir ../output/spaceinvaders/dqn
+python train.py --env SpaceInvadersNoFrameskip-v4 --episodes 1500 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --save-dir ../output/spaceinvaders/ddqn
+python train.py --env SpaceInvadersNoFrameskip-v4 --episodes 1500 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --save-dir ../output/spaceinvaders/ddqn_duel
+python train.py --env SpaceInvadersNoFrameskip-v4 --episodes 1500 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --priority --save-dir ../output/spaceinvaders/ddqn_per
+python train.py --env SpaceInvadersNoFrameskip-v4 --episodes 1500 --lr 1e-4 --batch-size 64 --buffer-size 100000 --double --dueling --priority --save-dir ../output/spaceinvaders/ddqn_duel_per
 
 # =============================================================
-#  Individual Plots
+#  INDIVIDUAL PLOTS
 # =============================================================
+
+# CartPole
+python plot_metrics.py --dirs ../output/cartpole/dqn --save-dir ../output/cartpole/dqn
+python plot_metrics.py --dirs ../output/cartpole/ddqn --save-dir ../output/cartpole/ddqn
+python plot_metrics.py --dirs ../output/cartpole/ddqn_duel --save-dir ../output/cartpole/ddqn_duel
+python plot_metrics.py --dirs ../output/cartpole/ddqn_per --save-dir ../output/cartpole/ddqn_per
+python plot_metrics.py --dirs ../output/cartpole/ddqn_duel_per --save-dir ../output/cartpole/ddqn_duel_per
 
 # Pong
-python plot_metrics.py --dirs ../output/pong_dqn --save-dir ../output/pong_dqn
-python plot_metrics.py --dirs ../output/pong_ddqn --save-dir ../output/pong_ddqn
-python plot_metrics.py --dirs ../output/pong_ddqn_duel --save-dir ../output/pong_ddqn_duel
-python plot_metrics.py --dirs ../output/pong_ddqn_per --save-dir ../output/pong_ddqn_per
-python plot_metrics.py --dirs ../output/pong_ddqn_duel_per --save-dir ../output/pong_ddqn_duel_per
+python plot_metrics.py --dirs ../output/pong/dqn --save-dir ../output/pong/dqn
+python plot_metrics.py --dirs ../output/pong/ddqn --save-dir ../output/pong/ddqn
+python plot_metrics.py --dirs ../output/pong/ddqn_duel --save-dir ../output/pong/ddqn_duel
+python plot_metrics.py --dirs ../output/pong/ddqn_per --save-dir ../output/pong/ddqn_per
+python plot_metrics.py --dirs ../output/pong/ddqn_duel_per --save-dir ../output/pong/ddqn_duel_per
 
 # Breakout
-python plot_metrics.py --dirs ../output/breakout_dqn --save-dir ../output/breakout_dqn
-python plot_metrics.py --dirs ../output/breakout_ddqn --save-dir ../output/breakout_ddqn
-python plot_metrics.py --dirs ../output/breakout_ddqn_duel --save-dir ../output/breakout_ddqn_duel
-python plot_metrics.py --dirs ../output/breakout_ddqn_per --save-dir ../output/breakout_ddqn_per
-python plot_metrics.py --dirs ../output/breakout_ddqn_duel_per --save-dir ../output/breakout_ddqn_duel_per
+python plot_metrics.py --dirs ../output/breakout/dqn --save-dir ../output/breakout/dqn
+python plot_metrics.py --dirs ../output/breakout/ddqn --save-dir ../output/breakout/ddqn
+python plot_metrics.py --dirs ../output/breakout/ddqn_duel --save-dir ../output/breakout/ddqn_duel
+python plot_metrics.py --dirs ../output/breakout/ddqn_per --save-dir ../output/breakout/ddqn_per
+python plot_metrics.py --dirs ../output/breakout/ddqn_duel_per --save-dir ../output/breakout/ddqn_duel_per
+
+# Space Invaders
+python plot_metrics.py --dirs ../output/spaceinvaders/dqn --save-dir ../output/spaceinvaders/dqn
+python plot_metrics.py --dirs ../output/spaceinvaders/ddqn --save-dir ../output/spaceinvaders/ddqn
+python plot_metrics.py --dirs ../output/spaceinvaders/ddqn_duel --save-dir ../output/spaceinvaders/ddqn_duel
+python plot_metrics.py --dirs ../output/spaceinvaders/ddqn_per --save-dir ../output/spaceinvaders/ddqn_per
+python plot_metrics.py --dirs ../output/spaceinvaders/ddqn_duel_per --save-dir ../output/spaceinvaders/ddqn_duel_per
 
 # =============================================================
-#  Comparison Plots (all variants per game)
+#  COMPARISON PLOTS
 # =============================================================
+
+# CartPole — all variants comparison
+python plot_metrics.py --dirs ../output/cartpole/dqn ../output/cartpole/ddqn ../output/cartpole/ddqn_duel ../output/cartpole/ddqn_per ../output/cartpole/ddqn_duel_per --save-dir ../output/cartpole/comparison
 
 # Pong — all variants comparison
-python plot_metrics.py --dirs ../output/pong_dqn ../output/pong_ddqn ../output/pong_ddqn_duel ../output/pong_ddqn_per ../output/pong_ddqn_duel_per --save-dir ../output/pong_comparison
+python plot_metrics.py --dirs ../output/pong/dqn ../output/pong/ddqn ../output/pong/ddqn_duel ../output/pong/ddqn_per ../output/pong/ddqn_duel_per --save-dir ../output/pong/comparison
 
-# Breakout — all variants comparison
-python plot_metrics.py --dirs ../output/breakout_dqn ../output/breakout_ddqn ../output/breakout_ddqn_duel ../output/breakout_ddqn_per ../output/breakout_ddqn_duel_per --save-dir ../output/breakout_comparison
+# Breakout — all variants comparison (truncated to 3000 episodes for fair comparison)
+python plot_metrics.py --dirs ../output/breakout/dqn ../output/breakout/ddqn ../output/breakout/ddqn_duel ../output/breakout/ddqn_per ../output/breakout/ddqn_duel_per --save-dir ../output/breakout/comparison --max-episodes 3000
+
+# Space Invaders — all variants comparison
+python plot_metrics.py --dirs ../output/spaceinvaders/dqn ../output/spaceinvaders/ddqn ../output/spaceinvaders/ddqn_duel ../output/spaceinvaders/ddqn_per ../output/spaceinvaders/ddqn_duel_per --save-dir ../output/spaceinvaders/comparison
 
 # =============================================================
-#  CartPole (already trained — just plots)
+#  TESTING / VISUALIZATION
 # =============================================================
 
-python plot_metrics.py --dirs ../output/cartpole_plain_dqn --save-dir ../output/cartpole_plain_dqn
-python plot_metrics.py --dirs ../output/cartpole_ddqn --save-dir ../output/cartpole_ddqn
-python plot_metrics.py --dirs ../output/cartpole_ddqn_duel --save-dir ../output/cartpole_ddqn_duel
-python plot_metrics.py --dirs ../output/cartpole_ddqn_per --save-dir ../output/cartpole_ddqn_per
-python plot_metrics.py --dirs ../output/cartpole_ddqn_duel_per --save-dir ../output/cartpole_ddqn_duel_per
-
-python plot_metrics.py --dirs ../output/cartpole_plain_dqn ../output/cartpole_ddqn ../output/cartpole_ddqn_duel ../output/cartpole_ddqn_per ../output/cartpole_ddqn_duel_per --save-dir ../output/cartpole_comparison
+# Visualize trained models playing (add --render-mode human)
+python test.py --env CartPole-v1 --load-path ../output/cartpole/ddqn_duel_per/best_model.pth --episodes 5 --render-mode human
+python test.py --env PongNoFrameskip-v4 --load-path ../output/pong/ddqn/best_model.pth --episodes 3 --render-mode human
+python test.py --env BreakoutNoFrameskip-v4 --load-path ../output/breakout/ddqn/best_model.pth --episodes 3 --render-mode human
+python test.py --env SpaceInvadersNoFrameskip-v4 --load-path ../output/spaceinvaders/ddqn/best_model.pth --episodes 3 --render-mode human
