@@ -40,6 +40,24 @@ def parse_args():
 
     return parser.parse_args()
 
+def get_valid_actions(env_name):
+    """Get valid action indices for a game when using full 18-action space."""
+    valid_actions_map = {
+        'breakout': [0, 1, 3, 4],
+        'pong': [0, 1, 3, 4, 11, 12],
+        'freeway': [0, 2, 5],
+        'spaceinvaders': [0, 1, 3, 4, 11, 12],
+        'qbert': [0, 1, 2, 3, 4, 5],
+        'seaquest': list(range(18)),
+        'mspacman': [0, 2, 3, 4, 5, 6, 7, 8, 9],
+    }
+    env_lower = env_name.lower()
+    for game, actions in valid_actions_map.items():
+        if game in env_lower:
+            return actions
+    return list(range(18))
+
+
 def create_env(env_name, render_mode='human', full_action_space=True):
     is_atari = env_name.startswith("ALE/") or "NoFrameskip" in env_name
 
@@ -53,8 +71,13 @@ def create_env(env_name, render_mode='human', full_action_space=True):
 
     env = gym.make(env_name, **make_kwargs)
 
+    # Get valid actions for this game (for action masking)
+    valid_actions = get_valid_actions(env_name) if is_atari and full_action_space else None
+
     if is_atari:
         print(f"Detected Atari environment: {env_name}. Applying AtariPreprocessing wrappers.")
+        if valid_actions:
+            print(f"Action masking enabled: {len(valid_actions)} valid actions out of 18")
         env = AtariPreprocessing(
             env, noop_max=30, frame_skip=4,
             screen_size=84, grayscale_obs=True,
@@ -67,7 +90,7 @@ def create_env(env_name, render_mode='human', full_action_space=True):
         state_dim = env.observation_space.shape[0]
 
     action_dim = env.action_space.n
-    return env, state_dim, action_dim
+    return env, state_dim, action_dim, valid_actions
 
 def main():
     args = parse_args()
@@ -93,8 +116,10 @@ def main():
         return
 
     # Create environment
-    env, state_dim, action_dim = create_env(args.env, render_mode=args.render_mode)
+    env, state_dim, action_dim, valid_actions = create_env(args.env, render_mode=args.render_mode)
     print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
+    if valid_actions:
+        print(f"Valid actions (masking enabled): {valid_actions}")
 
     # Initialize agent with correct variant flags
     agent = DQNAgent(
@@ -105,7 +130,8 @@ def main():
         batch_size=1,
         use_double=use_double,
         use_dueling=use_dueling,
-        use_priority=use_priority
+        use_priority=use_priority,
+        valid_actions=valid_actions
     )
 
     # Load model weights

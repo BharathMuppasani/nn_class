@@ -5,7 +5,7 @@ from dqn import DQN, DuelingDQN, CNNDQN, DuelingCNNDQN
 from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
 class DQNAgent:
-    def __init__(self, 
+    def __init__(self,
                  state_dim,
                  action_dim,
                  device,
@@ -19,8 +19,9 @@ class DQNAgent:
                  epsilon_decay=0.995,
                  use_double=False,
                  use_dueling=False,
-                 use_priority=False):
-        
+                 use_priority=False,
+                 valid_actions=None):
+
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.device = device
@@ -30,6 +31,10 @@ class DQNAgent:
         self.use_double = use_double
         self.use_dueling = use_dueling
         self.use_priority = use_priority
+
+        # Action masking: valid_actions is a list of valid action indices
+        # If None, all actions are valid (no masking)
+        self.valid_actions = valid_actions
 
         # Initialize networks
         is_image = isinstance(state_dim, (tuple, list, torch.Size)) and len(state_dim) == 3
@@ -42,33 +47,46 @@ class DQNAgent:
             network = DuelingDQN if use_dueling else DQN
             self.policy_net = network(state_dim, action_dim).to(device)
             self.target_net = network(state_dim, action_dim).to(device)
-            
+
         self.target_net.load_state_dict(self.policy_net.state_dict())
-        
+
         # Initialize optimizer
         self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=learning_rate, eps=1e-5)
-        
+
         # Initialize replay buffer
         if use_priority:
             self.memory = PrioritizedReplayBuffer(buffer_size, device)
         else:
             self.memory = ReplayBuffer(buffer_size, device)
-        
+
         self.epsilon = epsilon_start
         self.epsilon_end = epsilon_end
         self.epsilon_decay = epsilon_decay
-        
+
         self.training_step = 0
         self.tau = 0.005  # Soft update parameter
-    
+
     def select_action(self, state):
+        """Select action using epsilon-greedy with optional action masking."""
         if np.random.random() > self.epsilon:
+            # Exploitation: choose best action from Q-values
             with torch.no_grad():
                 state = torch.FloatTensor(np.array(state)).unsqueeze(0).to(self.device)
                 q_values = self.policy_net(state)
-                return q_values.max(1)[1].item()
+
+                if self.valid_actions is not None:
+                    # Mask invalid actions by setting their Q-values to -inf
+                    mask = torch.full_like(q_values, float('-inf'))
+                    mask[0, self.valid_actions] = q_values[0, self.valid_actions]
+                    return mask.max(1)[1].item()
+                else:
+                    return q_values.max(1)[1].item()
         else:
-            return np.random.randint(self.action_dim)
+            # Exploration: random action from valid actions only
+            if self.valid_actions is not None:
+                return np.random.choice(self.valid_actions)
+            else:
+                return np.random.randint(self.action_dim)
     
     def update(self):
         if len(self.memory) < self.batch_size:

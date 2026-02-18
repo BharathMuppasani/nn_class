@@ -67,6 +67,41 @@ def parse_args():
     
     return parser.parse_args()
 
+def get_valid_actions(env_name):
+    """Get valid action indices for a game when using full 18-action space.
+
+    This enables action masking: the network outputs 18 Q-values but we only
+    select from valid actions, giving us consistent architecture + efficient exploration.
+    """
+    # Map of game names to their valid actions in the 18-action space
+    # These are the minimal action sets mapped to full action space indices
+    valid_actions_map = {
+        # Breakout: NOOP, FIRE, RIGHT, LEFT
+        'breakout': [0, 1, 3, 4],
+        # Pong: NOOP, FIRE, RIGHT, LEFT, RIGHTFIRE, LEFTFIRE
+        'pong': [0, 1, 3, 4, 11, 12],
+        # Freeway: NOOP, UP, DOWN
+        'freeway': [0, 2, 5],
+        # Space Invaders: NOOP, FIRE, RIGHT, LEFT, RIGHTFIRE, LEFTFIRE
+        'spaceinvaders': [0, 1, 3, 4, 11, 12],
+        # Qbert: NOOP, FIRE, UP, RIGHT, LEFT, DOWN
+        'qbert': [0, 1, 2, 3, 4, 5],
+        # Seaquest: NOOP, FIRE, UP, RIGHT, LEFT, DOWN, UPRIGHT, UPLEFT, DOWNRIGHT, DOWNLEFT,
+        #           UPFIRE, RIGHTFIRE, LEFTFIRE, DOWNFIRE, UPRIGHTFIRE, UPLEFTFIRE, DOWNRIGHTFIRE, DOWNLEFTFIRE
+        'seaquest': list(range(18)),  # All 18 actions valid
+        # MsPacman: NOOP, UP, RIGHT, LEFT, DOWN, UPRIGHT, UPLEFT, DOWNRIGHT, DOWNLEFT
+        'mspacman': [0, 2, 3, 4, 5, 6, 7, 8, 9],
+    }
+
+    env_lower = env_name.lower()
+    for game, actions in valid_actions_map.items():
+        if game in env_lower:
+            return actions
+
+    # Default: all 18 actions valid (no masking)
+    return list(range(18))
+
+
 def create_env(env_name, seed=0, render_mode=None, terminal_on_life_loss=True, full_action_space=True):
     is_atari = env_name.startswith("ALE/") or "NoFrameskip" in env_name
 
@@ -80,8 +115,13 @@ def create_env(env_name, seed=0, render_mode=None, terminal_on_life_loss=True, f
 
     env = gym.make(env_name, **make_kwargs)
 
+    # Get valid actions for this game (for action masking)
+    valid_actions = get_valid_actions(env_name) if is_atari and full_action_space else None
+
     if is_atari:
         print(f"Detected Atari environment: {env_name}. Applying AtariPreprocessing wrappers.")
+        if valid_actions:
+            print(f"Action masking enabled: {len(valid_actions)} valid actions out of 18")
         env = AtariPreprocessing(
             env, noop_max=30, frame_skip=4,
             screen_size=84, grayscale_obs=True,
@@ -95,7 +135,7 @@ def create_env(env_name, seed=0, render_mode=None, terminal_on_life_loss=True, f
 
     env.reset(seed=seed)
     action_dim = env.action_space.n
-    return env, state_dim, action_dim
+    return env, state_dim, action_dim, valid_actions
 
 def save_training_config(args, save_dir):
     config = vars(args)
@@ -167,9 +207,11 @@ def main():
     render_mode = "human" if args.render else None
 
     # Create environment and agent
-    env, state_dim, action_dim = create_env(args.env, render_mode=render_mode)
+    env, state_dim, action_dim, valid_actions = create_env(args.env, render_mode=render_mode)
     # env = NormalizeReward(env, gamma=0.99, epsilon=1e-8) # Optional: Disable for now to see raw rewards
     print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
+    if valid_actions:
+        print(f"Valid actions (masking enabled): {valid_actions}")
 
     print(f"\n{'='*60}")
     print(f"  DQN Training — {variant_label} DQN")
@@ -228,7 +270,8 @@ def main():
         epsilon_decay=args.epsilon_decay,
         use_double=args.double,
         use_dueling=args.dueling,
-        use_priority=args.priority
+        use_priority=args.priority,
+        valid_actions=valid_actions
     )
     
     if args.load_path and os.path.exists(args.load_path):
