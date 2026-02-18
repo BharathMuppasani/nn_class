@@ -9,11 +9,11 @@
     "render": false,
     "epsilon_start": 1.0,
     "epsilon_end": 0.01,
-    "epsilon_decay": 0.99,
+    "epsilon_decay": 0.999,
     "update_every": 4,
     "double": true,
     "dueling": false,
     "priority": false,
-    "save_dir": "../output/pong_ddqn",
+    "save_dir": "../output/pong/ddqn",
     "load_path": null
 }

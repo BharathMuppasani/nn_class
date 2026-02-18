@@ -40,10 +40,18 @@ def parse_args():
 
     return parser.parse_args()
 
-def create_env(env_name, render_mode='human'):
-    env = gym.make(env_name, render_mode=render_mode)
+def create_env(env_name, render_mode='human', full_action_space=True):
+    is_atari = env_name.startswith("ALE/") or "NoFrameskip" in env_name
 
-    is_atari = "Pong" in env_name or "Breakout" in env_name or "NoFrameskip" in env_name
+    # Build gym.make kwargs
+    make_kwargs = {"render_mode": render_mode}
+    if is_atari:
+        make_kwargs["full_action_space"] = full_action_space
+        # Disable built-in frameskip for ALE/v5 envs (AtariPreprocessing handles it)
+        if env_name.startswith("ALE/"):
+            make_kwargs["frameskip"] = 1
+
+    env = gym.make(env_name, **make_kwargs)
 
     if is_atari:
         print(f"Detected Atari environment: {env_name}. Applying AtariPreprocessing wrappers.")
