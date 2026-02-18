@@ -8,13 +8,13 @@
 #   ./train_pong.sh --lr 1e-4 --epsilon-decay 0.999  # Custom hyperparams for all
 
 # Default hyperparameters (tuned for 18-action space)
-EPISODES=1000
+EPISODES=2000
 BATCH_SIZE=64
 LR="1e-4"
 BUFFER_SIZE=100000
 EPSILON_START=1.0
-EPSILON_END=0.01
-EPSILON_DECAY=0.999
+EPSILON_END=0.001
+EPSILON_DECAY=0.995
 GAMMA=0.99
 TARGET_UPDATE=1
 UPDATE_EVERY=4

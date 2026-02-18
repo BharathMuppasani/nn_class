@@ -313,9 +313,15 @@ def plot_comparison_q_values(run_dirs: List[str], save_dir: str, colors, start_e
     plt.savefig(f'{save_dir}/q_values_comparison.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-def plot_comparison(run_dirs: List[str], save_dir: str, colors, start_episode: int = 1, max_episodes: int = None):
+def plot_comparison(run_dirs: List[str], save_dir: str, colors, start_episode: int = 1, max_episodes: int = None, window: int = None):
     """Create comprehensive comparison plots for multiple training runs."""
     Path(save_dir).mkdir(exist_ok=True, parents=True)
+
+    # Default window sizes, can be overridden
+    reward_window = window if window else 100
+    eff_window = window if window else 150
+    loss_window = window if window else 50
+    length_window = window if window else 100
 
     metrics_list = []
     labels = []
@@ -335,77 +341,177 @@ def plot_comparison(run_dirs: List[str], save_dir: str, colors, start_episode: i
             if config.get('dueling', False): variant.append('Dueling')
             if config.get('priority', False): variant.append('PER')
             labels.append(' + '.join(variant) if variant else 'DQN')
-    
-    fig = plt.figure(figsize=(16, 8))
-    gs = fig.add_gridspec(2, 2, hspace=0.3)
-    
+
+    # Different line styles to distinguish overlapping lines
+    line_styles = ['-', '--', '-.', ':', (0, (3, 1, 1, 1))]
+
+    # =========================================================================
+    # PLOT 1: Combined 2x2 overview (improved)
+    # =========================================================================
+    fig = plt.figure(figsize=(16, 10))
+    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.25)
+
     ax1 = fig.add_subplot(gs[0, 0])
     ax3 = fig.add_subplot(gs[1, 0], sharex=ax1)
     ax2 = fig.add_subplot(gs[0, 1])
     ax4 = fig.add_subplot(gs[1, 1])
-    
-    fig.suptitle('DQN Variants Comparison', fontsize=16, y=0.95, color='#2D2D2D')
-    
-    base_alpha = 0.70
-    increment = 0.05
-    base_zorder = 2  # Starting z-order for line plots
-    
+
+    fig.suptitle('DQN Variants Comparison', fontsize=18, y=0.98, color='#2D2D2D', fontweight='bold')
+
     for idx, ((metrics, label), color) in enumerate(zip(zip(metrics_list, labels), colors)):
-        # Slice data starting from start_episode
         episodes = range(start_episode, len(metrics['rewards']) + 1)
         rewards = metrics['rewards'][start_episode-1:]
         losses = metrics['losses'][start_episode-1:]
         episode_lengths = metrics['episode_lengths'][start_episode-1:]
         frames_seen = calculate_frames_seen(episode_lengths)
-        
-        z_order = base_zorder + idx  # Increment z-order for each variant
-        
-        # Plot rewards
-        smoothed_rewards = smooth_data(rewards, window=20)
-        ax1.plot(episodes[len(episodes)-len(smoothed_rewards):], 
-                 smoothed_rewards, label=label, linewidth=2, color=color, alpha=base_alpha, zorder=z_order)
-        ax1.plot(episodes, rewards, alpha=0.2, linewidth=1, color=color, zorder=z_order)
-        
+
+        ls = line_styles[idx % len(line_styles)]
+        z_order = 10 - idx  # Higher z-order for first variants
+
+        # Plot rewards with confidence band
+        smoothed_rewards = smooth_data(rewards, window=reward_window)
+        ep_x = list(episodes[len(episodes)-len(smoothed_rewards):])
+        ax1.plot(ep_x, smoothed_rewards, label=label, linewidth=2.5, color=color,
+                 linestyle=ls, zorder=z_order)
+        # Light fill for variance indication
+        if len(rewards) > reward_window:
+            std_rewards = pd.Series(rewards).rolling(window=reward_window).std().dropna().values
+            ax1.fill_between(ep_x, smoothed_rewards - std_rewards, smoothed_rewards + std_rewards,
+                           color=color, alpha=0.1, zorder=z_order-1)
+
         # Plot sample efficiency
-        smoothed_eff_rewards = smooth_data(rewards, window=50)
-        ax2.plot(frames_seen[len(frames_seen)-len(smoothed_eff_rewards):], 
-                 smoothed_eff_rewards, label=label, linewidth=2, color=color, alpha=base_alpha, zorder=z_order)
-        
+        smoothed_eff_rewards = smooth_data(rewards, window=eff_window)
+        frames_x = frames_seen[len(frames_seen)-len(smoothed_eff_rewards):]
+        ax2.plot(frames_x, smoothed_eff_rewards, label=label, linewidth=2.5, color=color,
+                 linestyle=ls, zorder=z_order)
+
         # Plot losses
-        smoothed_losses = smooth_data(losses, window=10)
-        ax3.plot(episodes[len(episodes)-len(smoothed_losses):], 
-                 smoothed_losses, label=label, linewidth=2, color=color, alpha=base_alpha, zorder=z_order)
-        ax3.plot(episodes, losses, alpha=0.2, linewidth=1, color=color, zorder=z_order)
-        
+        smoothed_losses = smooth_data(losses, window=loss_window)
+        loss_ep_x = list(episodes[len(episodes)-len(smoothed_losses):])
+        ax3.plot(loss_ep_x, smoothed_losses, label=label, linewidth=2.5, color=color,
+                 linestyle=ls, zorder=z_order)
+
         # Plot episode lengths
-        smoothed_lengths = smooth_data(episode_lengths, window=20)
-        ax4.plot(episodes[len(episodes)-len(smoothed_lengths):], 
-                 smoothed_lengths, label=label, linewidth=2, color=color, alpha=base_alpha, zorder=z_order)
-        ax4.plot(episodes, episode_lengths, alpha=0.2, linewidth=1, color=color, zorder=z_order)
-        
-        base_alpha += increment
-    
-    ax1.set_title('Average Episode Reward')
+        smoothed_lengths = smooth_data(episode_lengths, window=length_window)
+        len_ep_x = list(episodes[len(episodes)-len(smoothed_lengths):])
+        ax4.plot(len_ep_x, smoothed_lengths, label=label, linewidth=2.5, color=color,
+                 linestyle=ls, zorder=z_order)
+
+    ax1.set_title('Average Episode Reward', fontsize=12, fontweight='bold')
     ax1.set_ylabel('Reward')
-    ax1.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize='x-small')
-    
-    ax2.set_title('Sample Efficiency')
+    ax1.legend(frameon=True, facecolor='white', framealpha=0.95, fontsize='small', loc='upper left')
+    ax1.grid(True, alpha=0.3)
+
+    ax2.set_title('Sample Efficiency', fontsize=12, fontweight='bold')
     ax2.set_xlabel('Total Frames')
     ax2.set_ylabel('Average Reward')
     ax2.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-    ax2.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize='x-small')
-    
+    ax2.legend(frameon=True, facecolor='white', framealpha=0.95, fontsize='small', loc='upper left')
+    ax2.grid(True, alpha=0.3)
+
+    ax3.set_title('Training Loss', fontsize=12, fontweight='bold')
     ax3.set_xlabel('Episode')
     ax3.set_ylabel('Loss')
-    ax3.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize='x-small')
-    
-    ax4.set_title('Episode Lengths')
+    ax3.legend(frameon=True, facecolor='white', framealpha=0.95, fontsize='small', loc='upper right')
+    ax3.grid(True, alpha=0.3)
+
+    ax4.set_title('Episode Lengths', fontsize=12, fontweight='bold')
     ax4.set_xlabel('Episode')
     ax4.set_ylabel('Steps')
-    ax4.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize='x-small')
-    
+    ax4.legend(frameon=True, facecolor='white', framealpha=0.95, fontsize='small', loc='upper left')
+    ax4.grid(True, alpha=0.3)
+
     plt.tight_layout()
     plt.savefig(f'{save_dir}/variants_comparison_overview.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # =========================================================================
+    # PLOT 2: Individual subplots for each metric (larger, easier to read)
+    # =========================================================================
+    for metric_name, metric_title, ylabel in [
+        ('rewards', 'Episode Rewards Comparison', 'Reward'),
+        ('losses', 'Training Loss Comparison', 'Loss'),
+        ('episode_lengths', 'Episode Lengths Comparison', 'Steps')
+    ]:
+        fig, ax = plt.subplots(figsize=(14, 6))
+
+        for idx, ((metrics, label), color) in enumerate(zip(zip(metrics_list, labels), colors)):
+            episodes = range(start_episode, len(metrics[metric_name]) + 1)
+            data = metrics[metric_name][start_episode-1:]
+
+            ls = line_styles[idx % len(line_styles)]
+            win = reward_window if metric_name == 'rewards' else (loss_window if metric_name == 'losses' else length_window)
+
+            smoothed = smooth_data(data, window=win)
+            ep_x = list(episodes[len(episodes)-len(smoothed):])
+
+            # Plot smoothed line
+            ax.plot(ep_x, smoothed, label=label, linewidth=3, color=color,
+                   linestyle=ls, zorder=10-idx)
+
+            # Add confidence band
+            if len(data) > win:
+                std_data = pd.Series(data).rolling(window=win).std().dropna().values
+                ax.fill_between(ep_x, smoothed - std_data, smoothed + std_data,
+                              color=color, alpha=0.15, zorder=1)
+
+        ax.set_title(metric_title, fontsize=16, fontweight='bold', pad=15)
+        ax.set_xlabel('Episode', fontsize=12)
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.legend(frameon=True, facecolor='white', framealpha=0.95, fontsize=11,
+                 loc='best', ncol=2 if len(labels) > 3 else 1)
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.savefig(f'{save_dir}/{metric_name}_comparison.png', dpi=300, bbox_inches='tight')
+        plt.close()
+
+    # =========================================================================
+    # PLOT 3: Final performance bar chart
+    # =========================================================================
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    final_rewards = [m['avg_rewards'][-1] if m['avg_rewards'] else 0 for m in metrics_list]
+    max_rewards = [max(m['rewards']) if m['rewards'] else 0 for m in metrics_list]
+    final_lengths = [np.mean(m['episode_lengths'][-100:]) if len(m['episode_lengths']) >= 100
+                    else np.mean(m['episode_lengths']) for m in metrics_list]
+
+    x = np.arange(len(labels))
+    bar_colors = colors[:len(labels)]
+
+    # Final average reward
+    bars1 = axes[0].bar(x, final_rewards, color=bar_colors, edgecolor='white', linewidth=1.5)
+    axes[0].set_title('Final Average Reward', fontsize=12, fontweight='bold')
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
+    axes[0].set_ylabel('Reward')
+    for bar, val in zip(bars1, final_rewards):
+        axes[0].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                    f'{val:.1f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+    # Max reward achieved
+    bars2 = axes[1].bar(x, max_rewards, color=bar_colors, edgecolor='white', linewidth=1.5)
+    axes[1].set_title('Maximum Reward Achieved', fontsize=12, fontweight='bold')
+    axes[1].set_xticks(x)
+    axes[1].set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
+    axes[1].set_ylabel('Reward')
+    for bar, val in zip(bars2, max_rewards):
+        axes[1].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                    f'{val:.0f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+    # Average episode length (last 100)
+    bars3 = axes[2].bar(x, final_lengths, color=bar_colors, edgecolor='white', linewidth=1.5)
+    axes[2].set_title('Avg Episode Length (last 100)', fontsize=12, fontweight='bold')
+    axes[2].set_xticks(x)
+    axes[2].set_xticklabels(labels, rotation=45, ha='right', fontsize=9)
+    axes[2].set_ylabel('Steps')
+    for bar, val in zip(bars3, final_lengths):
+        axes[2].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
+                    f'{val:.0f}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+    fig.suptitle('Final Performance Summary', fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+    plt.savefig(f'{save_dir}/final_performance_summary.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     # Additionally plot Q-values comparison if available
@@ -423,6 +529,8 @@ def main():
                         help='Episode number to start plotting from (default: 5)')
     parser.add_argument('--max-episodes', type=int, default=None,
                         help='Maximum episodes to plot (for fair comparison when runs have different lengths)')
+    parser.add_argument('--window', type=int, default=None,
+                        help='Moving average window size for smoothing (default: 20 for rewards, 50 for efficiency)')
 
     args = parser.parse_args()
     colors = setup_style()
@@ -431,17 +539,17 @@ def main():
         # Single run
         with open(os.path.join(args.dirs[0], 'training_logs.json'), 'r') as f:
             metrics = json.load(f)
-        
+
         q_values_log = None
         q_values_path = os.path.join(args.dirs[0], 'q_values_log.json')
         if os.path.exists(q_values_path):
             with open(q_values_path, 'r') as f:
                 q_values_log = json.load(f)
-        
+
         plot_single_run(metrics, q_values_log, args.save_dir, colors, args.start_episode)
     else:
         # Multiple runs comparison
-        plot_comparison(args.dirs, args.save_dir, colors, args.start_episode, args.max_episodes)
+        plot_comparison(args.dirs, args.save_dir, colors, args.start_episode, args.max_episodes, args.window)
 
 if __name__ == "__main__":
     main()
