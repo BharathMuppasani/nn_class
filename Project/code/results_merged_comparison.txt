@@ -1,0 +1,38 @@
+======================================================================================
+ATARI MODEL EVALUATION REPORT
+======================================================================================
+Generated  : 2026-02-20 03:56:33
+Games      : breakout, pong, freeway
+Episodes   : 100 per model
+Epsilon    : 0.01
+Device     : mps
+
+INDIVIDUAL MODELS
+--------------------------------------------------------------------------------------
+Game             Variant                     Mean      ±Std    Median       Min       Max
+--------------------------------------------------------------------------------------
+  (none found)
+
+MERGED MODELS
+--------------------------------------------------------------------------------------
+Game             Variant                     Mean      ±Std    Median       Min       Max
+--------------------------------------------------------------------------------------
+  [breakout_pong_distill_v4.pth]
+Breakout         (merged)                  +11.30      5.60    +11.00     +0.00    +37.00
+Pong             (merged)                   +5.32      6.55     +6.00    -20.00    +15.00
+Freeway          (merged)                   +0.00      0.00     +0.00     +0.00     +0.00
+  AVERAGE ACROSS GAMES                       +5.54
+
+  [breakout_pong_freeway_distill_v1.pth]
+Breakout         (merged)                   +6.91      4.87     +5.00     +1.00    +29.00
+Pong             (merged)                  -18.87      5.97    -21.00    -21.00    +19.00
+Freeway          (merged)                  +23.22      1.62    +23.00    +20.00    +27.00
+  AVERAGE ACROSS GAMES                       +3.75
+
+  [pong_freeway_distill_v1.pth]
+Breakout         (merged)                   +0.19      0.50     +0.00     +0.00     +2.00
+Pong             (merged)                  -13.01     14.52    -21.00    -21.00    +20.00
+Freeway          (merged)                  +25.75      1.64    +26.00    +21.00    +31.00
+  AVERAGE ACROSS GAMES                       +4.31
+
+======================================================================================
