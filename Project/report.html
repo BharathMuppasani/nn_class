@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multi-Task Policy Distillation — Atari</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
@@ -161,12 +162,19 @@
     code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #eee; padding: 1px 5px; border-radius: 3px; }
 
     /* ── Architecture ── */
-    .arch {
-      background: #fff; border: 1px solid #ddd; border-radius: 6px;
-      padding: 20px 24px; font-family: 'JetBrains Mono', monospace;
-      font-size: 12.5px; line-height: 1.9; overflow-x: auto; color: #333;
+    .arch-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; color: #888; margin-bottom: 8px;
     }
-    .arch .dim { color: #888; }
+    .arch-wrap {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 16px; overflow-x: auto; text-align: center;
+    }
+    .arch-wrap svg { max-width: 100%; height: auto; }
+    .arch-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    @media (max-width: 660px) { .arch-grid { grid-template-columns: 1fr; } }
 
     /* ── Config ── */
     .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
@@ -194,6 +202,65 @@
     .action-card p  { font-size: 12.5px; color: #555; line-height: 1.8; margin: 0; font-family: 'JetBrains Mono', monospace; }
 
     .caption { font-size: 12.5px; color: #777; margin-top: 6px; font-style: italic; }
+
+    /* ── Interactive merged chart ── */
+    .interactive-chart-wrap {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .model-selector {
+      flex-shrink: 0;
+      width: 210px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .selector-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      margin-bottom: 2px;
+    }
+    .model-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px 13px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      width: 100%;
+    }
+    .model-btn:hover { border-color: #4a5ec4; background: #f7f8ff; }
+    .model-btn.active {
+      border-color: #4a5ec4;
+      background: #f0f2fd;
+      border-left: 3px solid #4a5ec4;
+    }
+    .btn-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #1a1a1a;
+      word-break: break-all;
+    }
+    .btn-sub {
+      font-size: 11px;
+      color: #888;
+      margin-top: 3px;
+    }
+    @media (max-width: 640px) {
+      .interactive-chart-wrap { flex-direction: column; }
+      .model-selector { width: 100%; flex-direction: row; flex-wrap: wrap; }
+      .model-btn { width: auto; flex: 1; min-width: 140px; }
+    }
 
     /* ── Checkpoint callout ── */
     .callout {
@@ -376,28 +443,59 @@
 
   <!-- 4. Architecture -->
   <section>
-    <h2>4. Model Architecture — DuelingCNNDQN</h2>
-    <p>Student and all teacher models share the same architecture. Input normalization (÷255) is applied inside the forward pass.</p>
-    <div class="arch">
-Input: (4, 84, 84) — 4 stacked greyscale frames
+    <h2>4. Model Architectures</h2>
+    <p>Two CNN architectures are used. Both share the same convolutional backbone. The <strong>DuelingCNNDQN</strong> is used for all expert teachers and the merged student.</p>
 
-<span class="dim">Conv backbone (shared)</span>
-  Conv2d(4→32,  kernel=8, stride=4)  → ReLU
-  Conv2d(32→64, kernel=4, stride=2)  → ReLU
-  Conv2d(64→64, kernel=3, stride=1)  → ReLU
-  Flatten → 3136-dim feature vector
-              ↓
-    ┌─────────┴──────────┐
- Value stream        Advantage stream
- Linear(3136→512)    Linear(3136→512)
- ReLU → Linear(→1)   ReLU → Linear(→18)
-    └─────────┬──────────┘
-              ↓
-  Q(s,a) = V(s) + A(s,a) − mean(A(s,:))
-  Output: [18]  (full Atari action space)
+    <div class="arch-grid">
+      <div>
+        <div class="arch-label">CNNDQN — Plain Q-network (~1.69M params)</div>
+        <div class="arch-wrap">
+          <div class="mermaid">
+flowchart TD
+    A["<b>Input</b><br/>(4 × 84 × 84)<br/>4 stacked greyscale frames"]
+    A --> B["Conv2d 4→32<br/>kernel=8, stride=4 → ReLU"]
+    B --> C["Conv2d 32→64<br/>kernel=4, stride=2 → ReLU"]
+    C --> D["Conv2d 64→64<br/>kernel=3, stride=1 → ReLU"]
+    D --> E["Flatten<br/>3136-dim feature vector"]
+    E --> F["Linear 3136→512 → ReLU"]
+    F --> G["Linear 512→n_actions"]
+    G --> H["<b>Q-values</b><br/>[n_actions]"]
 
-Total parameters: 3,300,019
+    style A fill:#e8eaf6,stroke:#4a5ec4,color:#1a1a1a
+    style E fill:#fff3e0,stroke:#e67e22,color:#1a1a1a
+    style H fill:#e8f5e9,stroke:#2a7a4f,color:#1a1a1a
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="arch-label">DuelingCNNDQN — Dueling Q-network (3.3M params) ★ used</div>
+        <div class="arch-wrap">
+          <div class="mermaid">
+flowchart TD
+    A["<b>Input</b><br/>(4 × 84 × 84)<br/>4 stacked greyscale frames"]
+    A --> B["Conv2d 4→32<br/>kernel=8, stride=4 → ReLU"]
+    B --> C["Conv2d 32→64<br/>kernel=4, stride=2 → ReLU"]
+    C --> D["Conv2d 64→64<br/>kernel=3, stride=1 → ReLU"]
+    D --> E["Flatten<br/>3136-dim feature vector"]
+    E --> F["<b>Value Stream</b><br/>Linear 3136→512 → ReLU<br/>Linear 512→1<br/><i>V(s)</i>"]
+    E --> G["<b>Advantage Stream</b><br/>Linear 3136→512 → ReLU<br/>Linear 512→18<br/><i>A(s,a)</i>"]
+    F --> H["Q(s,a) = V(s) + A(s,a) − mean(A)"]
+    G --> H
+    H --> I["<b>Q-values</b><br/>[18 actions]"]
+
+    style A fill:#e8eaf6,stroke:#4a5ec4,color:#1a1a1a
+    style E fill:#fff3e0,stroke:#e67e22,color:#1a1a1a
+    style F fill:#e8f5e9,stroke:#2a7a4f,color:#1a1a1a
+    style G fill:#fce4ec,stroke:#c0392b,color:#1a1a1a
+    style H fill:#f3e5f5,stroke:#6a4ca0,color:#1a1a1a
+    style I fill:#e8f5e9,stroke:#2a7a4f,color:#1a1a1a
+          </div>
+        </div>
+      </div>
     </div>
+
+    <p class="caption" style="margin-top:10px;">The dueling decomposition separates state value V(s) from per-action advantages A(s,a). The student and all expert teachers use the DuelingCNNDQN with the same weight count.</p>
   </section>
 
   <!-- 5. Merged Model Results -->
@@ -405,24 +503,29 @@ Total parameters: 3,300,019
     <h2>5. Merged Model Results</h2>
     <p>Three student models were trained on different combinations of expert teachers and evaluated across all three games. All models use a single set of weights with no game-ID input.</p>
 
-    <!-- One chart per merged model, clearly labelled -->
-    <div class="chart-box">
-      <h3>breakout_pong_distill_v4 — Scores Across Games</h3>
-      <canvas id="chartM1" height="130"></canvas>
-    </div>
-    <p class="caption">Fig 3a. Trained on Breakout + Pong experts. Strong on Breakout, weak on Pong, not trained on Freeway.</p>
-
-    <div class="two-chart-grid">
-      <div class="chart-box" style="margin-bottom:0;">
-        <h3>breakout_pong_freeway_v1</h3>
-        <canvas id="chartM2" height="180"></canvas>
+    <!-- Interactive: model selector + single chart -->
+    <div class="interactive-chart-wrap">
+      <div class="model-selector">
+        <div class="selector-label">Select model</div>
+        <button class="model-btn active" data-model="0">
+          <span class="btn-name">breakout_pong_distill_v4</span>
+          <span class="btn-sub">Breakout + Pong</span>
+        </button>
+        <button class="model-btn" data-model="1">
+          <span class="btn-name">breakout_pong_freeway_v1</span>
+          <span class="btn-sub">Breakout + Pong + Freeway</span>
+        </button>
+        <button class="model-btn" data-model="2">
+          <span class="btn-name">pong_freeway_v1</span>
+          <span class="btn-sub">Pong + Freeway</span>
+        </button>
       </div>
-      <div class="chart-box" style="margin-bottom:0;">
-        <h3>pong_freeway_v1</h3>
-        <canvas id="chartM3" height="180"></canvas>
+      <div class="chart-box" style="margin-bottom:0; flex:1; min-width:0;">
+        <h3 id="mergedChartTitle">breakout_pong_distill_v4 — Expert vs Merged Student</h3>
+        <canvas id="chartMergedInteractive" height="200"></canvas>
+        <p id="mergedChartCaption" class="caption" style="margin-top:8px;">Trained on Breakout + Pong experts. Freeway score is 0 as it was not included in training.</p>
       </div>
     </div>
-    <p class="caption">Fig 3b–c. Three-game and two-game (Pong+Freeway) student models. Pong is consistently the hardest game to retain.</p>
 
     <table style="margin-top: 20px;">
       <thead>
@@ -500,6 +603,22 @@ Total parameters: 3,300,019
 </div>
 
 <script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor:       '#e8eaf6',
+      primaryTextColor:   '#1a1a1a',
+      primaryBorderColor: '#4a5ec4',
+      lineColor:          '#666',
+      secondaryColor:     '#fff3e0',
+      tertiaryColor:      '#ffffff',
+      fontFamily:         'Inter, system-ui, sans-serif',
+      fontSize:           '13px',
+      edgeLabelBackground:'#f9f8f6'
+    }
+  });
+
   Chart.defaults.color = '#555';
   Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
   Chart.defaults.font.size = 12;
@@ -636,88 +755,81 @@ Total parameters: 3,300,019
     }
   });
 
-  // ── Merged model 1: breakout_pong_distill_v4 ────────────────────────────────
-  new Chart(document.getElementById('chartM1'), {
+  // ── Interactive merged model chart ──────────────────────────────────────────
+  const EXPERT_SCORES = [19.76, 20.54, 33.40]; // ddqn_duel: Breakout, Pong, Freeway
+
+  const MERGED_MODELS = [
+    {
+      student:  [11.30, 5.32, 0.00],
+      yMin: 0, yMax: 40,
+      title:   'breakout_pong_distill_v4 — Expert vs Merged Student',
+      caption: 'Trained on Breakout + Pong experts. Freeway score is 0 as it was not included in training.'
+    },
+    {
+      student:  [6.91, -18.87, 23.22],
+      yMin: -22, yMax: 40,
+      title:   'breakout_pong_freeway_v1 — Expert vs Merged Student',
+      caption: 'Trained on all three experts. Good Freeway retention; Pong degraded significantly (−18.87).'
+    },
+    {
+      student:  [0.19, -13.01, 25.75],
+      yMin: -22, yMax: 40,
+      title:   'pong_freeway_v1 — Expert vs Merged Student',
+      caption: 'Trained on Pong + Freeway experts. Breakout near zero (untrained); Freeway well retained.'
+    }
+  ];
+
+  const mergedCtx = document.getElementById('chartMergedInteractive');
+  const mergedChart = new Chart(mergedCtx, {
     type: 'bar',
     data: {
       labels: ['Breakout', 'Pong', 'Freeway'],
       datasets: [
         {
-          label: 'Merged student',
-          data: [11.30, 5.32, 0.00],
-          backgroundColor: ['#c8cff7', '#b8e8d8', '#fde8b0'],
-          borderColor:      ['#4a5ec4', '#2a7a4f', '#b8860b'],
+          label: 'Expert (specialist)',
+          data: EXPERT_SCORES,
+          backgroundColor: '#d4edda',
+          borderColor: '#2a7a4f',
           borderWidth: 1.5, borderRadius: 4
         },
         {
-          label: 'Expert baseline',
-          data: [19.76, 20.54, 33.40],
-          backgroundColor: 'rgba(0,0,0,0)',
-          borderColor: ['#4a5ec4', '#2a7a4f', '#b8860b'],
-          borderWidth: 1.5, borderRadius: 4,
-          borderDash: [5, 4],
-          type: 'bar',
-          // render as thin line markers via borderSkipped
+          label: 'Merged student',
+          data: MERGED_MODELS[0].student,
+          backgroundColor: '#d0d5f5',
+          borderColor: '#4a5ec4',
+          borderWidth: 1.5, borderRadius: 4
         }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { labels: { boxWidth: 12, padding: 16, color: '#444' } } },
+      plugins: { legend: { labels: { boxWidth: 12, padding: 14, color: '#444' } } },
       scales: {
         x: { grid: { color: GRID }, ticks: { color: '#555' } },
-        y: { grid: { color: GRID }, ticks: { color: '#555' }, min: 0, max: 40,
-             title: { display: true, text: 'Mean Score', color: '#666' } }
+        y: { grid: { color: GRID }, ticks: { color: '#555' },
+             min: MERGED_MODELS[0].yMin, max: MERGED_MODELS[0].yMax,
+             title: { display: true, text: 'Mean Score (100 episodes)', color: '#666' } }
       }
     }
   });
 
-  // ── Merged model 2: breakout_pong_freeway_v1 ────────────────────────────────
-  new Chart(document.getElementById('chartM2'), {
-    type: 'bar',
-    data: {
-      labels: ['Breakout', 'Pong', 'Freeway'],
-      datasets: [{
-        label: 'Score',
-        data: [6.91, -18.87, 23.22],
-        backgroundColor: ['#c8cff7', '#f5c6cb', '#fde8b0'],
-        borderColor:      ['#4a5ec4', '#c0392b', '#b8860b'],
-        borderWidth: 1.5, borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: GRID }, ticks: { color: '#555' } },
-        y: { grid: { color: GRID }, ticks: { color: '#555' },
-             title: { display: true, text: 'Mean Score', color: '#666' } }
-      }
-    }
-  });
+  // Switch model on button click
+  document.querySelectorAll('.model-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
 
-  // ── Merged model 3: pong_freeway_v1 ─────────────────────────────────────────
-  new Chart(document.getElementById('chartM3'), {
-    type: 'bar',
-    data: {
-      labels: ['Breakout', 'Pong', 'Freeway'],
-      datasets: [{
-        label: 'Score',
-        data: [0.19, -13.01, 25.75],
-        backgroundColor: ['#c8cff7', '#f5c6cb', '#fde8b0'],
-        borderColor:      ['#4a5ec4', '#c0392b', '#b8860b'],
-        borderWidth: 1.5, borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: GRID }, ticks: { color: '#555' } },
-        y: { grid: { color: GRID }, ticks: { color: '#555' },
-             title: { display: true, text: 'Mean Score', color: '#666' } }
-      }
-    }
+      const idx = parseInt(btn.dataset.model);
+      const m = MERGED_MODELS[idx];
+
+      mergedChart.data.datasets[1].data = m.student;
+      mergedChart.options.scales.y.min = m.yMin;
+      mergedChart.options.scales.y.max = m.yMax;
+      mergedChart.update();
+
+      document.getElementById('mergedChartTitle').textContent = m.title;
+      document.getElementById('mergedChartCaption').textContent = m.caption;
+    });
   });
 
   // ── Expert vs Merged ─────────────────────────────────────────────────────────
