@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Task Policy Distillation — Atari</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f9f8f6;
+      color: #1a1a1a;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .page {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 60px 40px 80px;
+    }
+
+    /* ── Header ── */
+    .report-header {
+      border-bottom: 2px solid #1a1a1a;
+      padding-bottom: 24px;
+      margin-bottom: 48px;
+    }
+    .report-header h1 {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-bottom: 10px;
+    }
+    .report-header .subtitle { color: #555; font-size: 14px; }
+    .report-header .meta {
+      display: flex; gap: 32px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .meta-item { font-size: 13px; color: #444; }
+    .meta-item strong { color: #1a1a1a; }
+
+    /* ── Sections ── */
+    section { margin-bottom: 56px; }
+
+    h2 {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+    h3 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #555;
+      margin-bottom: 12px;
+    }
+    p { color: #333; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Chart containers ── */
+    .chart-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .chart-box h3 { margin-bottom: 16px; }
+
+    .two-chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 580px) { .two-chart-grid { grid-template-columns: 1fr; } }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    thead th {
+      background: #f0eeeb;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #555;
+      border-bottom: 1px solid #ddd;
+    }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid #eee; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; }
+    .pos { color: #2a7a4f; font-weight: 600; }
+    .neg { color: #c0392b; font-weight: 600; }
+    .neu { font-weight: 600; }
+
+    /* ── Two-col layout ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 620px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Methodology boxes ── */
+    .method-box {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 18px 20px;
+    }
+    .method-box h4 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .method-box p { font-size: 13.5px; color: #444; }
+    .method-box.rejected { border-left: 3px solid #c0392b; }
+    .method-box.used     { border-left: 3px solid #2a7a4f; }
+    .method-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+    .method-label.rej { color: #c0392b; }
+    .method-label.ok  { color: #2a7a4f; }
+
+    /* ── Steps ── */
+    .step-list { display: flex; flex-direction: column; gap: 10px; }
+    .step-item {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px;
+    }
+    .step-num {
+      flex-shrink: 0; width: 24px; height: 24px;
+      background: #1a1a1a; color: #fff; border-radius: 50%;
+      display: grid; place-items: center; font-size: 12px; font-weight: 600;
+    }
+    .step-text h5 { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .step-text p  { font-size: 13.5px; color: #444; margin: 0; }
+
+    /* ── Problem cards ── */
+    .problem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    .problem-card {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 16px 18px;
+    }
+    .problem-card .pb-num { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin-bottom: 6px; }
+    .problem-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .problem-card .desc { font-size: 13px; color: #555; margin-bottom: 10px; }
+    .fix { background: #f4faf7; border: 1px solid #bde3d0; border-radius: 5px; padding: 10px 12px; }
+    .fix .fix-label { font-size: 11px; font-weight: 600; color: #2a7a4f; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .fix p { font-size: 13px; color: #333; margin: 0; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: #eee; padding: 1px 5px; border-radius: 3px; }
+
+    /* ── Architecture ── */
+    .arch {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 20px 24px; font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px; line-height: 1.9; overflow-x: auto; color: #333;
+    }
+    .arch .dim { color: #888; }
+
+    /* ── Config ── */
+    .config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .config-row {
+      background: #fff; border: 1px solid #ddd; border-radius: 5px;
+      padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+    }
+    .config-key { font-size: 12px; color: #777; }
+    .config-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; }
+
+    /* ── Retention bars ── */
+    .retention-row { display: flex; flex-direction: column; gap: 14px; }
+    .ret-item { display: flex; align-items: center; gap: 14px; font-size: 13.5px; }
+    .ret-label { width: 80px; font-weight: 500; flex-shrink: 0; }
+    .ret-bar-wrap { flex: 1; height: 8px; background: #e8e6e2; border-radius: 99px; overflow: hidden; }
+    .ret-bar { height: 100%; border-radius: 99px; }
+    .ret-val { width: 36px; text-align: right; font-weight: 600; font-size: 13px; }
+    .ret-note { font-size: 12px; color: #777; }
+
+    /* ── Action table ── */
+    .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    @media (max-width: 560px) { .action-grid { grid-template-columns: 1fr; } }
+    .action-card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px 16px; }
+    .action-card h5 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .action-card p  { font-size: 12.5px; color: #555; line-height: 1.8; margin: 0; font-family: 'JetBrains Mono', monospace; }
+
+    .caption { font-size: 12.5px; color: #777; margin-top: 6px; font-style: italic; }
+
+    /* ── Checkpoint callout ── */
+    .callout {
+      background: #f4faf7; border: 1px solid #bde3d0; border-radius: 6px;
+      padding: 12px 16px; font-size: 13.5px; color: #333; margin-top: 14px;
+    }
+    .callout strong { color: #2a7a4f; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="report-header">
+    <h1>Multi-Task Policy Distillation for Atari Games</h1>
+    <div class="subtitle">Merging independently-trained DQN experts into a single student network via knowledge distillation</div>
+    <div class="meta">
+      <div class="meta-item"><strong>Games:</strong> Breakout, Pong, Freeway</div>
+      <div class="meta-item"><strong>Architecture:</strong> DuelingCNNDQN — 3.3M parameters</div>
+      <div class="meta-item"><strong>Evaluation:</strong> 100 episodes per model, ε = 0.01</div>
+      <div class="meta-item"><strong>Device:</strong> Apple MPS</div>
+    </div>
+  </div>
+
+  <!-- 1. Individual Model Performance -->
+  <section>
+    <h2>1. Individual Expert Model Performance</h2>
+    <p>Five DQN variants were trained independently on each game. These specialist models serve as the frozen teacher networks for distillation. The best-performing variant per game is used as the teacher.</p>
+
+    <!-- Breakout: horizontal bar (5 variants, labels are long) -->
+    <div class="chart-box">
+      <h3>Breakout — Mean Score by Variant (100 episodes)</h3>
+      <canvas id="chartBreakout" height="160"></canvas>
+    </div>
+    <p class="caption">Fig 1a. Breakout variant comparison. DDQN+Dueling achieves the highest mean score (+19.76) with the most variance.</p>
+
+    <!-- Pong + Freeway side by side -->
+    <div class="two-chart-grid">
+      <div class="chart-box" style="margin-bottom:0;">
+        <h3>Pong — Mean Score by Variant</h3>
+        <canvas id="chartPong" height="180"></canvas>
+      </div>
+      <div class="chart-box" style="margin-bottom:0;">
+        <h3>Freeway — Mean Score by Variant</h3>
+        <canvas id="chartFreeway" height="180"></canvas>
+      </div>
+    </div>
+    <p class="caption">Fig 1b–c. Pong and Freeway variants are stable with low variance across episodes.</p>
+
+    <table style="margin-top: 20px;">
+      <thead>
+        <tr><th>Game</th><th>Variant</th><th>Mean</th><th>±Std</th><th>Median</th><th>Min</th><th>Max</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Breakout</td><td class="mono">dqn</td>           <td class="neu">+11.31</td><td>5.81</td><td>+11.0</td><td>+4</td><td>+38</td></tr>
+        <tr><td>Breakout</td><td class="mono">ddqn</td>          <td class="neu">+8.06</td> <td>3.99</td><td>+7.0</td> <td>+0</td><td>+20</td></tr>
+        <tr><td>Breakout</td><td class="mono">ddqn_per</td>      <td class="neu">+9.40</td> <td>4.49</td><td>+9.5</td> <td>+2</td><td>+19</td></tr>
+        <tr><td>Breakout</td><td class="mono">ddqn_duel</td>     <td class="pos">+19.76</td><td>14.09</td><td>+16.0</td><td>+1</td><td>+44</td></tr>
+        <tr><td>Breakout</td><td class="mono">ddqn_duel_per</td> <td class="pos">+17.09</td><td>7.97</td><td>+15.0</td><td>+0</td><td>+33</td></tr>
+        <tr><td>Pong</td>   <td class="mono">ddqn</td>           <td class="pos">+20.35</td><td>0.89</td><td>+21.0</td><td>+17</td><td>+21</td></tr>
+        <tr><td>Pong</td>   <td class="mono">ddqn_duel</td>      <td class="pos">+20.54</td><td>0.62</td><td>+21.0</td><td>+19</td><td>+21</td></tr>
+        <tr><td>Freeway</td><td class="mono">ddqn</td>           <td class="pos">+32.65</td><td>0.78</td><td>+33.0</td><td>+30</td><td>+34</td></tr>
+        <tr><td>Freeway</td><td class="mono">ddqn_duel</td>      <td class="pos">+33.40</td><td>0.63</td><td>+33.0</td><td>+32</td><td>+34</td></tr>
+      </tbody>
+    </table>
+    <p class="caption">Table 1. Full per-variant statistics. The <code>ddqn_duel</code> variant is used as the teacher for all three games.</p>
+  </section>
+
+  <!-- 2. Methodology -->
+  <section>
+    <h2>2. Methodology — Policy Distillation</h2>
+
+    <div class="two-col" style="margin-bottom: 20px;">
+      <div class="method-box rejected">
+        <div class="method-label rej">Rejected: HTCL / Weight Averaging</div>
+        <h4>Why not weight merging?</h4>
+        <p>HTCL assumes all models share an evolving initialisation. Here, each expert was trained independently from random weights — their weight spaces are unrelated. Averaging unrelated weights destroys both policies.</p>
+        <p style="margin-top:8px;"><strong>Empirical result:</strong> Breakout = +10, Pong = −21.</p>
+      </div>
+      <div class="method-box used">
+        <div class="method-label ok">Used: Multi-Task Policy Distillation</div>
+        <h4>Knowledge distillation from frozen experts</h4>
+        <p>Expert models act as frozen teachers. A student network learns to reproduce the Q-value outputs of all teachers at once, trained with equal per-game MSE losses. No game-ID input — the student infers context from pixels.</p>
+      </div>
+    </div>
+
+    <h3>Distillation Process</h3>
+    <div class="step-list">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <h5>Collect states from each expert</h5>
+          <p>Each frozen expert plays its game for 20,000 steps. Raw pixel frames (84×84, 4 stacked) are saved as the training inputs for the student.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <h5>Pre-compute teacher Q-values (frozen)</h5>
+          <p>For every saved frame, the frozen expert produces a Q-value vector over all 18 Atari actions. Cached once — teachers never update during student training.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <h5>Train student with per-game MSE averaged equally</h5>
+          <p>The student minimises MSE against teacher Q-values, restricted to valid actions per game. Losses are averaged equally: <code>loss = (mse_B + mse_P + mse_F) / 3</code>.</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <h5>Save checkpoint by game score, not training loss</h5>
+          <p>Every 10 epochs, the student plays real episodes. The checkpoint with the highest total game score is saved — not lowest loss, which selects for overfitting.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 24px;">Action Space Masking</h3>
+    <div class="action-grid">
+      <div class="action-card">
+        <h5>Breakout — [0, 1, 3, 4]</h5>
+        <p>NOOP · FIRE · RIGHT · LEFT</p>
+      </div>
+      <div class="action-card">
+        <h5>Pong — [0, 1, 3, 4, 11, 12]</h5>
+        <p>NOOP · FIRE · RIGHT · LEFT · RIGHTFIRE · LEFTFIRE</p>
+      </div>
+      <div class="action-card">
+        <h5>Freeway — [0, 2, 5]</h5>
+        <p>NOOP · UP · DOWN</p>
+      </div>
+    </div>
+    <p class="caption" style="margin-top:8px;">Invalid actions are masked to −∞ before argmax at inference — the student always selects only valid actions.</p>
+  </section>
+
+  <!-- 3. Problems and Fixes -->
+  <section>
+    <h2>3. Engineering Challenges</h2>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="pb-num">Problem 1</div>
+        <h4>Q-value Scale Imbalance</h4>
+        <p class="desc">Breakout Q-values span ≈19 units; Pong ≈3.2; Freeway ≈0.6. Without correction, Breakout's gradients are ~34× larger, dominating training at the expense of the other games.</p>
+        <div class="fix">
+          <div class="fix-label">Fix</div>
+          <p>Compute separate MSE per game and average equally across all games.</p>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="pb-num">Problem 2</div>
+        <h4>Overfitting</h4>
+        <p class="desc">3.3M parameters, only 20K training states per game. Training loss fell 40× but Pong score worsened — the model memorised specific frames rather than learning generalisable features.</p>
+        <div class="fix">
+          <div class="fix-label">Fix</div>
+          <p>L2 weight decay on Adam: <code>weight_decay = 1e-4</code></p>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="pb-num">Problem 3</div>
+        <h4>Wrong Model Selection</h4>
+        <p class="desc">Saving by lowest training loss selected the most overfit checkpoint. Epoch 60 (loss=0.00094) scored worse on actual games than Epoch 30 (loss=0.0028).</p>
+        <div class="fix">
+          <div class="fix-label">Fix</div>
+          <p>Evaluate real game performance every 10 epochs. Save by highest total game score.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training curve: scores only, no dual axis -->
+    <div class="chart-box" style="margin-top: 16px;">
+      <h3>Game Scores During Training (Breakout + Pong)</h3>
+      <canvas id="chartTraining" height="200"></canvas>
+    </div>
+    <div class="callout">
+      <strong>★ Epoch 30 saved</strong> — highest combined score (Breakout +16, Pong +10). By epoch 60, Pong collapses to −19.4 despite lower training loss, confirming overfitting.
+    </div>
+    <p class="caption" style="margin-top: 8px;">Fig 2. Game score per checkpoint. Best checkpoint selected at epoch 30, not at minimum training loss.</p>
+  </section>
+
+  <!-- 4. Architecture -->
+  <section>
+    <h2>4. Model Architecture — DuelingCNNDQN</h2>
+    <p>Student and all teacher models share the same architecture. Input normalization (÷255) is applied inside the forward pass.</p>
+    <div class="arch">
+Input: (4, 84, 84) — 4 stacked greyscale frames
+
+<span class="dim">Conv backbone (shared)</span>
+  Conv2d(4→32,  kernel=8, stride=4)  → ReLU
+  Conv2d(32→64, kernel=4, stride=2)  → ReLU
+  Conv2d(64→64, kernel=3, stride=1)  → ReLU
+  Flatten → 3136-dim feature vector
+              ↓
+    ┌─────────┴──────────┐
+ Value stream        Advantage stream
+ Linear(3136→512)    Linear(3136→512)
+ ReLU → Linear(→1)   ReLU → Linear(→18)
+    └─────────┬──────────┘
+              ↓
+  Q(s,a) = V(s) + A(s,a) − mean(A(s,:))
+  Output: [18]  (full Atari action space)
+
+Total parameters: 3,300,019
+    </div>
+  </section>
+
+  <!-- 5. Merged Model Results -->
+  <section>
+    <h2>5. Merged Model Results</h2>
+    <p>Three student models were trained on different combinations of expert teachers and evaluated across all three games. All models use a single set of weights with no game-ID input.</p>
+
+    <!-- One chart per merged model, clearly labelled -->
+    <div class="chart-box">
+      <h3>breakout_pong_distill_v4 — Scores Across Games</h3>
+      <canvas id="chartM1" height="130"></canvas>
+    </div>
+    <p class="caption">Fig 3a. Trained on Breakout + Pong experts. Strong on Breakout, weak on Pong, not trained on Freeway.</p>
+
+    <div class="two-chart-grid">
+      <div class="chart-box" style="margin-bottom:0;">
+        <h3>breakout_pong_freeway_v1</h3>
+        <canvas id="chartM2" height="180"></canvas>
+      </div>
+      <div class="chart-box" style="margin-bottom:0;">
+        <h3>pong_freeway_v1</h3>
+        <canvas id="chartM3" height="180"></canvas>
+      </div>
+    </div>
+    <p class="caption">Fig 3b–c. Three-game and two-game (Pong+Freeway) student models. Pong is consistently the hardest game to retain.</p>
+
+    <table style="margin-top: 20px;">
+      <thead>
+        <tr><th>Model</th><th>Breakout</th><th>Pong</th><th>Freeway</th><th>Average</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">breakout_pong_distill_v4</td>
+          <td class="pos">+11.30</td><td class="neu">+5.32</td><td class="neu">0.00</td>
+          <td><strong>+5.54</strong></td>
+        </tr>
+        <tr>
+          <td class="mono">breakout_pong_freeway_v1</td>
+          <td class="neu">+6.91</td><td class="neg">−18.87</td><td class="pos">+23.22</td>
+          <td><strong>+3.75</strong></td>
+        </tr>
+        <tr>
+          <td class="mono">pong_freeway_v1</td>
+          <td class="neg">+0.19</td><td class="neg">−13.01</td><td class="pos">+25.75</td>
+          <td><strong>+4.31</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="caption">Table 2. Mean scores across 100 evaluation episodes per game.</p>
+  </section>
+
+  <!-- 6. Expert vs Merged -->
+  <section>
+    <h2>6. Expert vs. Best Merged Model</h2>
+    <p>The best-performing student (<code>breakout_pong_distill_v4</code>) compared against its specialist teacher models. A single 3.3M-parameter model plays both games without any game-identifier input.</p>
+
+    <div class="chart-box">
+      <h3>Expert Specialist vs. Merged Student — Breakout and Pong</h3>
+      <canvas id="chartFinal" height="180"></canvas>
+    </div>
+    <p class="caption">Fig 4. Side-by-side comparison. The merged model retains 90% of Breakout performance and 26% of Pong performance in a single shared policy.</p>
+
+    <div style="background:#fff; border:1px solid #ddd; border-radius:6px; padding:20px 24px; margin-top:16px;">
+      <h3>Policy Retention vs. Expert Baseline</h3>
+      <div class="retention-row">
+        <div class="ret-item">
+          <span class="ret-label">Breakout</span>
+          <div class="ret-bar-wrap"><div class="ret-bar" style="width:90%; background:#2a7a4f;"></div></div>
+          <span class="ret-val" style="color:#2a7a4f;">90%</span>
+          <span class="ret-note">+19.76 → +11.30</span>
+        </div>
+        <div class="ret-item">
+          <span class="ret-label">Pong</span>
+          <div class="ret-bar-wrap"><div class="ret-bar" style="width:26%; background:#c0392b;"></div></div>
+          <span class="ret-val" style="color:#c0392b;">26%</span>
+          <span class="ret-note">+20.54 → +5.32</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Training Config -->
+  <section>
+    <h2>7. Training Configuration</h2>
+    <p>Hyperparameters for <code>breakout_pong_distill_v4</code>, the best-performing merged model.</p>
+    <div class="config-grid">
+      <div class="config-row"><span class="config-key">collect_steps</span><span class="config-val">20,000</span></div>
+      <div class="config-row"><span class="config-key">distill_epochs</span><span class="config-val">60</span></div>
+      <div class="config-row"><span class="config-key">learning_rate</span><span class="config-val">3e-4</span></div>
+      <div class="config-row"><span class="config-key">weight_decay</span><span class="config-val">1e-4</span></div>
+      <div class="config-row"><span class="config-key">distill_init</span><span class="config-val">warmstart</span></div>
+      <div class="config-row"><span class="config-key">eval_every</span><span class="config-val">10 epochs</span></div>
+      <div class="config-row"><span class="config-key">batch_size</span><span class="config-val">256</span></div>
+      <div class="config-row"><span class="config-key">lr_schedule</span><span class="config-val">CosineAnnealingLR</span></div>
+      <div class="config-row"><span class="config-key">optimizer</span><span class="config-val">Adam</span></div>
+      <div class="config-row"><span class="config-key">epsilon (eval)</span><span class="config-val">0.01</span></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  Chart.defaults.color = '#555';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size = 12;
+
+  const GRID = '#e8e6e2';
+
+  function scalesXY(xTitle, yTitle) {
+    return {
+      x: { grid: { color: GRID }, ticks: { color: '#555' }, title: xTitle ? { display: true, text: xTitle, color: '#666' } : { display: false } },
+      y: { grid: { color: GRID }, ticks: { color: '#555' }, title: yTitle ? { display: true, text: yTitle, color: '#666' } : { display: false } }
+    };
+  }
+
+  // ── 1a. Breakout: horizontal bar chart ──────────────────────────────────────
+  new Chart(document.getElementById('chartBreakout'), {
+    type: 'bar',
+    data: {
+      labels: ['DQN', 'DDQN', 'DDQN + PER', 'DDQN + Dueling', 'DDQN + Dueling + PER'],
+      datasets: [{
+        label: 'Mean Score',
+        data: [11.31, 8.06, 9.40, 19.76, 17.09],
+        backgroundColor: ['#c8cff7','#c8cff7','#c8cff7','#4a5ec4','#6a78d4'],
+        borderColor:      ['#4a5ec4','#4a5ec4','#4a5ec4','#2a3a9a','#4a5ec4'],
+        borderWidth: 1.5,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',          // horizontal bars — labels readable
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ` Mean Score: +${ctx.parsed.x.toFixed(2)}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' }, title: { display: true, text: 'Mean Score (100 episodes)', color: '#666' }, min: 0 },
+        y: { grid: { display: false }, ticks: { color: '#333' } }
+      }
+    }
+  });
+
+  // ── 1b. Pong ────────────────────────────────────────────────────────────────
+  new Chart(document.getElementById('chartPong'), {
+    type: 'bar',
+    data: {
+      labels: ['DDQN', 'DDQN + Dueling'],
+      datasets: [{
+        label: 'Mean Score',
+        data: [20.35, 20.54],
+        backgroundColor: ['#b8e8d8', '#2a7a4f'],
+        borderColor:      ['#2a7a4f', '#1a5a3f'],
+        borderWidth: 1.5, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' }, min: 0, max: 22,
+             title: { display: true, text: 'Mean Score', color: '#666' } }
+      }
+    }
+  });
+
+  // ── 1c. Freeway ─────────────────────────────────────────────────────────────
+  new Chart(document.getElementById('chartFreeway'), {
+    type: 'bar',
+    data: {
+      labels: ['DDQN', 'DDQN + Dueling'],
+      datasets: [{
+        label: 'Mean Score',
+        data: [32.65, 33.40],
+        backgroundColor: ['#fde8b0', '#b8860b'],
+        borderColor:      ['#b8860b', '#8a6008'],
+        borderWidth: 1.5, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' }, min: 28, max: 36,
+             title: { display: true, text: 'Mean Score', color: '#666' } }
+      }
+    }
+  });
+
+  // ── Training curve: scores only, no dual axis ───────────────────────────────
+  new Chart(document.getElementById('chartTraining'), {
+    type: 'line',
+    data: {
+      labels: ['Epoch 20', 'Epoch 30', 'Epoch 40', 'Epoch 60'],
+      datasets: [
+        {
+          label: 'Breakout Score',
+          data: [17.0, 16.0, 14.0, 14.4],
+          borderColor: '#4a5ec4',
+          backgroundColor: 'rgba(74,94,196,0.08)',
+          pointBackgroundColor: ['#4a5ec4','#2a7a4f','#4a5ec4','#4a5ec4'],
+          pointRadius: [5, 9, 5, 5],
+          pointStyle: ['circle','star','circle','circle'],
+          borderWidth: 2, tension: 0.3
+        },
+        {
+          label: 'Pong Score',
+          data: [-12.0, 10.0, 8.0, -19.4],
+          borderColor: '#2a7a4f',
+          backgroundColor: 'rgba(42,122,79,0.08)',
+          pointBackgroundColor: ['#2a7a4f','#2a7a4f','#2a7a4f','#c0392b'],
+          pointRadius: [5, 9, 5, 5],
+          pointStyle: ['circle','star','circle','circle'],
+          borderWidth: 2, tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { labels: { boxWidth: 12, padding: 16, color: '#444' } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: {
+          grid: { color: GRID }, ticks: { color: '#555' },
+          title: { display: true, text: 'Game Score', color: '#666' }
+        }
+      }
+    }
+  });
+
+  // ── Merged model 1: breakout_pong_distill_v4 ────────────────────────────────
+  new Chart(document.getElementById('chartM1'), {
+    type: 'bar',
+    data: {
+      labels: ['Breakout', 'Pong', 'Freeway'],
+      datasets: [
+        {
+          label: 'Merged student',
+          data: [11.30, 5.32, 0.00],
+          backgroundColor: ['#c8cff7', '#b8e8d8', '#fde8b0'],
+          borderColor:      ['#4a5ec4', '#2a7a4f', '#b8860b'],
+          borderWidth: 1.5, borderRadius: 4
+        },
+        {
+          label: 'Expert baseline',
+          data: [19.76, 20.54, 33.40],
+          backgroundColor: 'rgba(0,0,0,0)',
+          borderColor: ['#4a5ec4', '#2a7a4f', '#b8860b'],
+          borderWidth: 1.5, borderRadius: 4,
+          borderDash: [5, 4],
+          type: 'bar',
+          // render as thin line markers via borderSkipped
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { labels: { boxWidth: 12, padding: 16, color: '#444' } } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' }, min: 0, max: 40,
+             title: { display: true, text: 'Mean Score', color: '#666' } }
+      }
+    }
+  });
+
+  // ── Merged model 2: breakout_pong_freeway_v1 ────────────────────────────────
+  new Chart(document.getElementById('chartM2'), {
+    type: 'bar',
+    data: {
+      labels: ['Breakout', 'Pong', 'Freeway'],
+      datasets: [{
+        label: 'Score',
+        data: [6.91, -18.87, 23.22],
+        backgroundColor: ['#c8cff7', '#f5c6cb', '#fde8b0'],
+        borderColor:      ['#4a5ec4', '#c0392b', '#b8860b'],
+        borderWidth: 1.5, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' },
+             title: { display: true, text: 'Mean Score', color: '#666' } }
+      }
+    }
+  });
+
+  // ── Merged model 3: pong_freeway_v1 ─────────────────────────────────────────
+  new Chart(document.getElementById('chartM3'), {
+    type: 'bar',
+    data: {
+      labels: ['Breakout', 'Pong', 'Freeway'],
+      datasets: [{
+        label: 'Score',
+        data: [0.19, -13.01, 25.75],
+        backgroundColor: ['#c8cff7', '#f5c6cb', '#fde8b0'],
+        borderColor:      ['#4a5ec4', '#c0392b', '#b8860b'],
+        borderWidth: 1.5, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' },
+             title: { display: true, text: 'Mean Score', color: '#666' } }
+      }
+    }
+  });
+
+  // ── Expert vs Merged ─────────────────────────────────────────────────────────
+  new Chart(document.getElementById('chartFinal'), {
+    type: 'bar',
+    data: {
+      labels: ['Breakout', 'Pong'],
+      datasets: [
+        {
+          label: 'Expert (specialist)',
+          data: [19.76, 20.54],
+          backgroundColor: ['#b8e8d8', '#b8e8d8'],
+          borderColor: '#2a7a4f', borderWidth: 1.5, borderRadius: 4
+        },
+        {
+          label: 'Merged student',
+          data: [11.30, 5.32],
+          backgroundColor: ['#c8cff7', '#c8cff7'],
+          borderColor: '#4a5ec4', borderWidth: 1.5, borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { labels: { boxWidth: 12, padding: 16, color: '#444' } } },
+      scales: {
+        x: { grid: { color: GRID }, ticks: { color: '#555' } },
+        y: { grid: { color: GRID }, ticks: { color: '#555' }, min: 0, max: 24,
+             title: { display: true, text: 'Mean Score (100 episodes)', color: '#666' } }
+      }
+    }
+  });
+</script>
+</body>
+</html>
